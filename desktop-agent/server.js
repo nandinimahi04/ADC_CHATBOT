@@ -168,7 +168,7 @@ app.get("*", (req, res) => {
 
 // Start server if not imported by test
 if (require.main === module) {
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
         console.log("");
         console.log("================================================");
         console.log("        SYSFRIEND — AI DESKTOP CONTROLLER       ");
@@ -178,6 +178,20 @@ if (require.main === module) {
         console.log(`[UI]      Loaded from ${uiPath}`);
         console.log("================================================");
         console.log("");
+    });
+
+    server.on("error", (err) => {
+        if (err.code === "EADDRINUSE") {
+            console.error("");
+            console.error(`[ERROR] Port ${PORT} is already in use by another running Node process.`);
+            console.error(`[FIX] To free port ${PORT}, run in PowerShell:`);
+            console.error(`      Get-Process -Id (Get-NetTCPConnection -LocalPort ${PORT}).OwningProcess | Stop-Process -Force`);
+            console.error("");
+            process.exit(1);
+        } else {
+            console.error("[Server Error]", err);
+            process.exit(1);
+        }
     });
 }
 

@@ -40,9 +40,15 @@ function useAgentApi() {
     const checkHealth = React.useCallback(async () => {
         try {
             const url = getFullUrl("/api/health");
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+
             const res = await fetch(url, {
-                headers: { "Accept": "application/json" }
+                headers: { "Accept": "application/json" },
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
+
             if (res.ok) {
                 const data = await res.json();
                 setAgentStatus({
@@ -72,14 +78,20 @@ function useAgentApi() {
 
         try {
             const url = getFullUrl("/api/chat");
+            const controller = new AbortController();
+            // Allow up to 35 seconds for Render free tier cold-starts
+            const timeoutId = setTimeout(() => controller.abort(), 35000);
+
             const response = await fetch(url, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "Accept": "application/json"
                 },
-                body: JSON.stringify({ message: message.trim() })
+                body: JSON.stringify({ message: message.trim() }),
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
 
             const data = await response.json();
             setIsLoading(false);
@@ -87,10 +99,22 @@ function useAgentApi() {
         } catch (err) {
             setIsLoading(false);
             setLastError(err.message || "Failed to reach agent");
+
+            const isPlaceholder = backendUrl.includes("sysfriend-agent.onrender.com");
+            let helpMessage = "";
+
+            if (isPlaceholder) {
+                helpMessage = "You are using the example URL 'sysfriend-agent.onrender.com'. Please replace it with your actual Render service URL from dashboard.render.com, or switch to 'Use Localhost' if running locally.";
+            } else if (backendUrl.includes("onrender.com")) {
+                helpMessage = `Cannot reach Render service at ${backendUrl}. Render Free instances take ~45s to wake up from sleep. Please check your service status in dashboard.render.com.`;
+            } else {
+                helpMessage = `Unable to connect to local agent on ${backendUrl || "http://localhost:3000"}. Please make sure 'npm start' or 'start-sysfriend.bat' is running.`;
+            }
+
             return {
                 success: false,
                 action: "UNKNOWN",
-                message: `Unable to connect to SysFriend agent (${backendUrl || "local /api"}). Is the Render/Local server running?`,
+                message: helpMessage,
                 requires_confirmation: false
             };
         }
