@@ -11,11 +11,17 @@ const { executeCommand } = require("./executor");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+// Permissive CORS for cross-origin frontend deployments (Vercel, localhost, etc.)
+app.use(cors({
+    origin: "*",
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Accept"]
+}));
 app.use(express.json());
 
+
 /*
- * Serve ADC UI static assets
+ * Serve SysFriend UI static assets
  */
 const uiPath = path.join(__dirname, "..", "desktop-ui");
 app.use(express.static(uiPath));
@@ -27,7 +33,7 @@ app.get("/api/health", (req, res) => {
     res.json({
         success: true,
         status: "online",
-        service: "ADC Desktop Agent",
+        service: "SysFriend Desktop Agent",
         model: process.env.GROQ_MODEL || "openai/gpt-oss-120b"
     });
 });
@@ -52,11 +58,11 @@ app.post("/api/chat", async (req, res) => {
             });
         }
 
-        console.log(`[ADC] Input: "${userMessage}"`);
+        console.log(`[SysFriend] Input: "${userMessage}"`);
 
         // Convert natural language to structured safe command
         const command = await parseCommand(userMessage);
-        console.log(`[ADC] Parsed Action: ${command.action}`, command.parameters);
+        console.log(`[SysFriend] Parsed Action: ${command.action}`, command.parameters);
 
         // Sensitive actions require explicit UI confirmation and must NOT run automatically
         if (
@@ -78,7 +84,7 @@ app.post("/api/chat", async (req, res) => {
 
         // Execute only validated safe commands
         const result = await executeCommand(command);
-        console.log(`[ADC] Execution Result:`, result);
+        console.log(`[SysFriend] Execution Result:`, result);
 
         return res.json({
             success: result.success !== false,
@@ -89,11 +95,11 @@ app.post("/api/chat", async (req, res) => {
         });
 
     } catch (error) {
-        console.error("[ADC Server Error]", error);
+        console.error("[SysFriend Server Error]", error);
         return res.status(500).json({
             success: false,
             action: "UNKNOWN",
-            message: error.message || "ADC encountered an unexpected internal error.",
+            message: error.message || "SysFriend encountered an unexpected internal error.",
             requires_confirmation: false
         });
     }
@@ -121,7 +127,7 @@ app.post("/api/confirm", async (req, res) => {
                 windowsHide: true
             });
 
-            console.log("[ADC] Executed scheduled Windows shutdown (10s delay).");
+            console.log("[SysFriend] Executed scheduled Windows shutdown (10s delay).");
             return res.json({
                 success: true,
                 action: "SHUTDOWN",
@@ -136,7 +142,7 @@ app.post("/api/confirm", async (req, res) => {
                 windowsHide: true
             });
 
-            console.log("[ADC] Executed scheduled Windows restart (10s delay).");
+            console.log("[SysFriend] Executed scheduled Windows restart (10s delay).");
             return res.json({
                 success: true,
                 action: "RESTART",
@@ -145,7 +151,7 @@ app.post("/api/confirm", async (req, res) => {
         }
 
     } catch (error) {
-        console.error("[ADC Confirm Error]", error);
+        console.error("[SysFriend Confirm Error]", error);
         return res.status(500).json({
             success: false,
             message: error.message || "Execution of confirmed action failed."
@@ -165,7 +171,7 @@ if (require.main === module) {
     app.listen(PORT, () => {
         console.log("");
         console.log("================================================");
-        console.log("          ADC — AI DESKTOP CONTROLLER           ");
+        console.log("        SYSFRIEND — AI DESKTOP CONTROLLER       ");
         console.log("================================================");
         console.log(`[Status]  Server running at http://localhost:${PORT}`);
         console.log(`[Model]   ${process.env.GROQ_MODEL || "openai/gpt-oss-120b"}`);

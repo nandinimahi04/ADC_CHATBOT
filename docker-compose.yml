@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  sysfriend-agent:
+    build: .
+    container_name: sysfriend-desktop-agent
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_MODEL=${GROQ_MODEL:-openai/gpt-oss-120b}
+    restart: unless-stopped

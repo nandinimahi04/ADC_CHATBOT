@@ -1,0 +1,28 @@
+{
+  "name": "sysfriend-adc",
+  "version": "2.0.0",
+  "description": "SysFriend (AI Desktop Controller) - Full-Stack Windows OS Assistant powered by Node.js, Express, and Groq LLM",
+  "main": "desktop-agent/server.js",
+  "scripts": {
+    "start": "node desktop-agent/server.js",
+    "dev": "node --watch desktop-agent/server.js",
+    "test": "node desktop-agent/tests.js",
+    "test:security": "node tests/security.test.js",
+    "install:agent": "cd desktop-agent && npm install"
+  },
+  "keywords": [
+    "ai-desktop-controller",
+    "sysfriend",
+    "windows-automation",
+    "groq-llm",
+    "express",
+    "node"
+  ],
+  "author": "Nandini Maheshwaram",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}

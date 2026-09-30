@@ -1,5 +1,5 @@
 /**
- * ADC (AI Desktop Controller) - Desktop Executor
+ * SysFriend (AI Desktop Controller) - Desktop Executor
  *
  * Executes only approved Windows desktop operations based on validated
  * structured commands. Never accepts arbitrary shell commands, scripts,
@@ -24,6 +24,21 @@ const ALLOWED_APPS = {
     },
     explorer: {
         executable: "explorer.exe"
+    },
+    paint: {
+        executable: "mspaint.exe"
+    },
+    taskmanager: {
+        executable: "taskmgr.exe"
+    },
+    settings: {
+        executable: "control.exe"
+    },
+    wordpad: {
+        executable: "write.exe"
+    },
+    snippingtool: {
+        executable: "snippingtool.exe"
     }
 };
 
@@ -153,6 +168,34 @@ Set-Clipboard -Value $text
                     reject(error);
                     return;
                 }
+                resolve();
+            }
+        );
+    });
+}
+
+/**
+ * Sends fixed Windows media keys safely (Volume Up, Down, Mute)
+ */
+function sendKey(keyCode) {
+    return new Promise((resolve, reject) => {
+        const script = `
+$wsh = New-Object -ComObject WScript.Shell
+$wsh.SendKeys([char]${keyCode})
+`;
+        const encodedScript = Buffer.from(script, "utf16le").toString("base64");
+
+        execFile(
+            "powershell.exe",
+            [
+                "-NoProfile",
+                "-NonInteractive",
+                "-EncodedCommand",
+                encodedScript
+            ],
+            { windowsHide: true },
+            error => {
+                if (error) return reject(error);
                 resolve();
             }
         );
@@ -367,8 +410,214 @@ async function executeCommand(command) {
     }
 
     /*
-     * 9. SHUTDOWN & RESTART
-     * Always requires explicit confirmation through POST /api/confirm
+     * 9. VOLUME_MUTE
+     */
+    if (action === "VOLUME_MUTE") {
+        try {
+            await sendKey(173); // VK_VOLUME_MUTE
+            return {
+                success: true,
+                message: "Audio mute toggled."
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: `Volume control error: ${error.message}`
+            };
+        }
+    }
+
+    /*
+     * 10. VOLUME_UP
+     */
+    if (action === "VOLUME_UP") {
+        try {
+            await sendKey(175); // VK_VOLUME_UP
+            await sendKey(175);
+            return {
+                success: true,
+                message: "Volume increased."
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: `Volume control error: ${error.message}`
+            };
+        }
+    }
+
+    /*
+     * 11. VOLUME_DOWN
+     */
+    if (action === "VOLUME_DOWN") {
+        try {
+            await sendKey(174); // VK_VOLUME_DOWN
+            await sendKey(174);
+            return {
+                success: true,
+                message: "Volume decreased."
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: `Volume control error: ${error.message}`
+            };
+        }
+    }
+
+    /*
+     * 12. EMPTY_RECYCLE_BIN
+     */
+    if (action === "EMPTY_RECYCLE_BIN") {
+        try {
+            await new Promise((resolve, reject) => {
+                execFile(
+                    "powershell.exe",
+                    [
+                        "-NoProfile",
+                        "-NonInteractive",
+                        "-Command",
+                        "Clear-RecycleBin -Force -ErrorAction SilentlyContinue"
+                    ],
+                    { windowsHide: true },
+                    err => {
+                        if (err) return reject(err);
+                        resolve();
+                    }
+                );
+            });
+            return {
+                success: true,
+                message: "Recycle Bin has been emptied."
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: `Could not empty Recycle Bin: ${error.message}`
+            };
+        }
+    }
+
+    /*
+     * 13. BATTERY_STATUS
+     */
+    if (action === "BATTERY_STATUS") {
+        try {
+            const batteryInfo = await new Promise((resolve) => {
+                execFile(
+                    "powershell.exe",
+                    [
+                        "-NoProfile",
+                        "-NonInteractive",
+                        "-Command",
+                        "(Get-CimInstance Win32_Battery | Select-Object -Property EstimatedChargeRemaining, BatteryStatus) | ConvertTo-Json"
+                    ],
+                    { windowsHide: true },
+                    (err, stdout) => {
+                        if (err || !stdout.trim()) {
+                            return resolve(null);
+                        }
+                        try {
+                            const data = JSON.parse(stdout);
+                            resolve(data);
+                        } catch {
+                            resolve(null);
+                        }
+                    }
+                );
+            });
+
+            if (batteryInfo && batteryInfo.EstimatedChargeRemaining !== undefined) {
+                const statusStr = batteryInfo.BatteryStatus === 2 ? "Charging ⚡" : "On Battery 🔋";
+                return {
+                    success: true,
+                    message: `Battery Level: ${batteryInfo.EstimatedChargeRemaining}% (${statusStr})`
+                };
+            }
+
+            return {
+                success: true,
+                message: "System is connected to AC power / Desktop power source."
+            };
+        } catch (error) {
+            return {
+                success: true,
+                message: "Battery status is unavailable on this device."
+            };
+        }
+    }
+
+    /*
+     * 14. DATE_TIME
+     */
+    if (action === "DATE_TIME") {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+        const timeStr = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        return {
+            success: true,
+            message: `Current Time: ${timeStr} | ${dateStr}`
+        };
+    }
+
+    /*
+     * 15. SCREENSHOT
+     */
+    if (action === "SCREENSHOT") {
+        try {
+            await launch("snippingtool.exe");
+            return {
+                success: true,
+                message: "Launched Snipping Tool for screen capture."
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: `Could not launch Snipping Tool: ${error.message}`
+            };
+        }
+    }
+
+    /*
+     * 16. WIFI_STATUS
+     */
+    if (action === "WIFI_STATUS") {
+        try {
+            const output = await new Promise((resolve) => {
+                execFile(
+                    "netsh.exe",
+                    ["wlan", "show", "interfaces"],
+                    { windowsHide: true },
+                    (err, stdout) => {
+                        resolve(stdout || "");
+                    }
+                );
+            });
+
+            const ssidMatch = output.match(/SSID\s*:\s*(.+)/);
+            const stateMatch = output.match(/State\s*:\s*(.+)/);
+
+            if (ssidMatch && ssidMatch[1]) {
+                return {
+                    success: true,
+                    message: `Wi-Fi Connected to: "${ssidMatch[1].trim()}" (State: ${stateMatch ? stateMatch[1].trim() : "connected"})`
+                };
+            }
+
+            return {
+                success: true,
+                message: "Internet / Network connection active."
+            };
+        } catch (error) {
+            return {
+                success: true,
+                message: "Network status query complete."
+            };
+        }
+    }
+
+    /*
+     * 17. SHUTDOWN & RESTART
      */
     if (action === "SHUTDOWN" || action === "RESTART") {
         return {
@@ -379,21 +628,21 @@ async function executeCommand(command) {
     }
 
     /*
-     * 10. HELP
+     * 18. HELP
      */
     if (action === "HELP") {
         return {
             success: true,
-            message: "I can open apps (Chrome, VS Code, Notepad, Calculator, Explorer), search Google, open websites, open files/folders, copy/read clipboard, lock or sleep Windows, and shut down or restart with confirmation."
+            message: "I am SysFriend! I can open apps (Chrome, VS Code, Notepad, Calculator, Explorer, Paint, Task Manager, Settings, WordPad, Snipping Tool), search Google, open websites & files, read/copy clipboard, adjust volume (mute/up/down), check battery, take screenshots, empty recycle bin, lock or sleep Windows, and shut down or restart with confirmation."
         };
     }
 
     /*
-     * 11. UNKNOWN
+     * 19. UNKNOWN
      */
     return {
         success: false,
-        message: command.message || "I couldn't determine a supported ADC action."
+        message: command.message || "I couldn't determine a supported SysFriend action."
     };
 }
 

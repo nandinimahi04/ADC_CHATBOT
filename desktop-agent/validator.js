@@ -1,5 +1,5 @@
 /**
- * ADC (AI Desktop Controller) - Security Validator
+ * SysFriend (AI Desktop Controller) - Security Validator
  *
  * Enforces strict whitelist validation for actions, parameters, applications,
  * URLs, and system operations. Rejects dangerous parameters, arbitrary commands,
@@ -17,6 +17,14 @@ const ALLOWED_ACTIONS = new Set([
     "SLEEP_SYSTEM",
     "SHUTDOWN",
     "RESTART",
+    "VOLUME_MUTE",
+    "VOLUME_UP",
+    "VOLUME_DOWN",
+    "EMPTY_RECYCLE_BIN",
+    "BATTERY_STATUS",
+    "DATE_TIME",
+    "SCREENSHOT",
+    "WIFI_STATUS",
     "HELP",
     "UNKNOWN"
 ]);
@@ -26,7 +34,12 @@ const ALLOWED_APPS = new Set([
     "vscode",
     "notepad",
     "calculator",
-    "explorer"
+    "explorer",
+    "paint",
+    "taskmanager",
+    "settings",
+    "wordpad",
+    "snippingtool"
 ]);
 
 const FORBIDDEN_KEYS = new Set([
@@ -59,7 +72,7 @@ function unknown(message) {
                 text: null,
                 confirmed: false
             },
-            message: message || "I couldn't determine a supported ADC action.",
+            message: message || "I couldn't determine a supported SysFriend action.",
             requires_confirmation: false
         }
     };
@@ -171,18 +184,20 @@ function validateCommand(command) {
         return { valid: true, command: clean };
     }
 
-    // CLIPBOARD_READ
-    if (clean.action === "CLIPBOARD_READ") {
-        return { valid: true, command: clean };
-    }
-
-    // LOCK_SYSTEM
-    if (clean.action === "LOCK_SYSTEM") {
-        return { valid: true, command: clean };
-    }
-
-    // SLEEP_SYSTEM
-    if (clean.action === "SLEEP_SYSTEM") {
+    // Direct Safe Actions
+    if (
+        clean.action === "CLIPBOARD_READ" ||
+        clean.action === "LOCK_SYSTEM" ||
+        clean.action === "SLEEP_SYSTEM" ||
+        clean.action === "VOLUME_MUTE" ||
+        clean.action === "VOLUME_UP" ||
+        clean.action === "VOLUME_DOWN" ||
+        clean.action === "EMPTY_RECYCLE_BIN" ||
+        clean.action === "BATTERY_STATUS" ||
+        clean.action === "DATE_TIME" ||
+        clean.action === "SCREENSHOT" ||
+        clean.action === "WIFI_STATUS"
+    ) {
         return { valid: true, command: clean };
     }
 

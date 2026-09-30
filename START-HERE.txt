@@ -1,4 +1,4 @@
-ADC — AI Desktop Controller
+SysFriend — AI Desktop Controller
 
 Quick Start Guide:
 

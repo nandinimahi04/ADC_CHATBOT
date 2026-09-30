@@ -1,5 +1,5 @@
 /**
- * ADC (AI Desktop Controller) - Command Router
+ * SysFriend (AI Desktop Controller) - Command Router
  *
  * Routes incoming natural language requests via direct deterministic parsing
  * for common commands (low latency, 0 token cost), falling back to Groq LLM
@@ -24,6 +24,14 @@ const ACTIONS = [
     "SLEEP_SYSTEM",
     "SHUTDOWN",
     "RESTART",
+    "VOLUME_MUTE",
+    "VOLUME_UP",
+    "VOLUME_DOWN",
+    "EMPTY_RECYCLE_BIN",
+    "BATTERY_STATUS",
+    "DATE_TIME",
+    "SCREENSHOT",
+    "WIFI_STATUS",
     "HELP",
     "UNKNOWN"
 ];
@@ -63,7 +71,37 @@ const APP_ALIASES = {
     "files": "explorer",
     "file-explorer": "explorer",
     "my computer": "explorer",
-    "this pc": "explorer"
+    "this pc": "explorer",
+
+    // Paint
+    paint: "paint",
+    mspaint: "paint",
+    "ms paint": "paint",
+    drawing: "paint",
+
+    // Task Manager
+    taskmanager: "taskmanager",
+    "task manager": "taskmanager",
+    taskmgr: "taskmanager",
+    tasks: "taskmanager",
+
+    // Settings
+    settings: "settings",
+    "windows settings": "settings",
+    "control panel": "settings",
+    control: "settings",
+
+    // WordPad
+    wordpad: "wordpad",
+    "word pad": "wordpad",
+    write: "wordpad",
+
+    // Snipping Tool
+    snippingtool: "snippingtool",
+    "snipping tool": "snippingtool",
+    "snip tool": "snippingtool",
+    "screenshot tool": "snippingtool",
+    snip: "snippingtool"
 };
 
 /**
@@ -199,7 +237,7 @@ function directCommand(rawText) {
         return createCommand(
             "HELP",
             {},
-            "I can open apps (Chrome, VS Code, Notepad, Calculator, Explorer), search the web, open URLs/files, read/copy clipboard, lock/sleep Windows, and shut down or restart with confirmation."
+            "I am SysFriend! I can open apps (Chrome, VS Code, Notepad, Calculator, Explorer, Paint, Task Manager, Settings, WordPad, Snipping Tool), search the web, manage clipboard, control volume (mute/up/down), check battery, take screenshots, empty recycle bin, lock/sleep Windows, and shut down or restart with confirmation."
         );
     }
 
@@ -268,7 +306,121 @@ function directCommand(rawText) {
     }
 
     /*
-     * 7. CLIPBOARD READ
+     * 7. AUDIO VOLUME CONTROLS (MUTE, UP, DOWN)
+     */
+    if (
+        /^(mute|unmute|mute\s+(the\s+|my\s+)?(volume|sound|audio)|toggle\s+mute)$/.test(
+            normalized
+        )
+    ) {
+        return createCommand(
+            "VOLUME_MUTE",
+            {},
+            "Toggling audio mute."
+        );
+    }
+
+    if (
+        /^(volume\s+up|increase\s+volume|raise\s+volume|louder|sound\s+up|turn\s+up\s+volume)$/.test(
+            normalized
+        )
+    ) {
+        return createCommand(
+            "VOLUME_UP",
+            {},
+            "Increasing volume."
+        );
+    }
+
+    if (
+        /^(volume\s+down|decrease\s+volume|lower\s+volume|quieter|sound\s+down|turn\s+down\s+volume)$/.test(
+            normalized
+        )
+    ) {
+        return createCommand(
+            "VOLUME_DOWN",
+            {},
+            "Decreasing volume."
+        );
+    }
+
+    /*
+     * 8. EMPTY RECYCLE BIN
+     */
+    if (
+        /^(empty\s+recycle\s+bin|clear\s+recycle\s+bin|clean\s+recycle\s+bin|empty\s+trash)$/.test(
+            normalized
+        )
+    ) {
+        return createCommand(
+            "EMPTY_RECYCLE_BIN",
+            {},
+            "Emptying Recycle Bin."
+        );
+    }
+
+    /*
+     * 9. BATTERY STATUS
+     */
+    if (
+        /^(battery|battery\s+status|check\s+battery|battery\s+level|battery\s+percentage|how\s+much\s+battery)$/.test(
+            normalized
+        )
+    ) {
+        return createCommand(
+            "BATTERY_STATUS",
+            {},
+            "Checking battery status."
+        );
+    }
+
+    /*
+     * 10. DATE & TIME
+     */
+    if (
+        /^(time|current\s+time|what\s+time\s+is\s+it|date|today's\s+date|what\s+is\s+the\s+date|what\s+date\s+is\s+today)$/.test(
+            normalized
+        )
+    ) {
+        return createCommand(
+            "DATE_TIME",
+            {},
+            "Checking current date and time."
+        );
+    }
+
+    /*
+     * 11. SCREENSHOT
+     */
+    if (
+        /^(screenshot|take\s+(a\s+)?screenshot|capture\s+screen|screen\s+capture|open\s+snipping\s+tool)$/.test(
+            normalized
+        )
+    ) {
+        return createCommand(
+            "SCREENSHOT",
+            {},
+            "Opening Snipping Tool for screen capture."
+        );
+    }
+
+    /*
+     * 12. WIFI & NETWORK STATUS
+     */
+    if (
+        /^(wifi\s+status|network\s+status|check\s+wifi|check\s+internet|am\s+i\s+connected(\s+to\s+internet)?|is\s+internet\s+working)$/.test(
+            normalized
+        )
+    ) {
+        return createCommand(
+            "WIFI_STATUS",
+            {},
+            "Checking network and Wi-Fi connection status."
+        );
+    }
+
+    /*
+     * 13. CLIPBOARD READ
      */
     if (
         normalized === "read clipboard" ||
@@ -287,7 +439,7 @@ function directCommand(rawText) {
     }
 
     /*
-     * 8. CLIPBOARD COPY
+     * 14. CLIPBOARD COPY
      */
     const copyMatch = rawText.match(
         /^(?:copy|copy this|copy to clipboard)\s+(.+)$/i
@@ -301,8 +453,8 @@ function directCommand(rawText) {
     }
 
     /*
-     * 9. OPEN APP AND TYPE / WRITE TEXT
-     * Example: "open notepad and write Hello ADC"
+     * 15. OPEN APP AND TYPE / WRITE TEXT
+     * Example: "open notepad and write Hello SysFriend"
      */
     const writeMatch = rawText.match(
         /^(?:open|launch|start)\s+([a-zA-Z\s]+?)\s+(?:and|then)\s+(?:write|type|enter|put)\s+(.+)$/i
@@ -322,7 +474,7 @@ function directCommand(rawText) {
     }
 
     /*
-     * 10. OPEN FOLDER IN DRIVE
+     * 16. OPEN FOLDER IN DRIVE
      * Example: "open Nandini folder in D drive"
      */
     const driveFolderMatch = rawText.match(
@@ -339,7 +491,7 @@ function directCommand(rawText) {
     }
 
     /*
-     * 11. OPEN DRIVE DIRECTLY
+     * 17. OPEN DRIVE DIRECTLY
      * Example: "open D drive"
      */
     const driveMatch = rawText.match(/^(?:open|launch)\s+([a-zA-Z])\s+drive$/i);
@@ -353,7 +505,7 @@ function directCommand(rawText) {
     }
 
     /*
-     * 12. EXPLICIT WINDOWS PATH
+     * 18. EXPLICIT WINDOWS PATH
      * Example: "open D:\Nandini", "D:\Projects", "C:\Users"
      */
     const pathMatch = rawText.match(
@@ -369,7 +521,7 @@ function directCommand(rawText) {
     }
 
     /*
-     * 13. WEB SEARCH
+     * 19. WEB SEARCH
      * Examples: "search for laptops", "find Python tutorials", "search laptops", "I want to buy a bag"
      */
     const searchMatch = rawText.match(
@@ -408,7 +560,7 @@ function directCommand(rawText) {
     }
 
     /*
-     * 14. OPEN URL / WEBSITE
+     * 20. OPEN URL / WEBSITE
      * Examples: "open github.com", "open https://github.com", "open youtube.com"
      */
     const urlMatch = rawText.match(
@@ -435,8 +587,8 @@ function directCommand(rawText) {
     }
 
     /*
-     * 15. OPEN APP
-     * Handles: "open chrome", "launch vscode", "start notepad", or standalone "chrome"
+     * 21. OPEN APP
+     * Handles: "open chrome", "launch vscode", "start notepad", "open paint", or standalone "chrome"
      */
     let target = normalized;
     const openAppMatch = normalized.match(/^(?:open|launch|start)\s+(.+)$/);
@@ -457,10 +609,7 @@ function directCommand(rawText) {
 }
 
 /**
- * Main parseCommand function:
- * 1. Executes deterministic pattern matching
- * 2. If no direct match, calls Groq LLM OpenAI-compatible endpoint
- * 3. Validates and returns structured safe command
+ * Main parseCommand function
  */
 async function parseCommand(userMessage) {
     if (!userMessage || !userMessage.trim()) {
